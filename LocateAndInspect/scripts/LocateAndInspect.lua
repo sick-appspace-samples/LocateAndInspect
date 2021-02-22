@@ -59,7 +59,8 @@ failDecoration:setLineWidth(5)
 -- Create edge matcher
 local matcher = Image.Matching.EdgeMatcher.create()
 matcher:setEdgeThreshold(50)
-matcher:setDownsampleFactor(2)
+local wantedDownsampleFactor = 2
+matcher:setDownsampleFactor(wantedDownsampleFactor) 
 
 -- Creating fixture for automatic pose adjustment of inspection region
 local fixt = Image.Fixture.create()
@@ -87,6 +88,13 @@ local function teach(img)
   local teachRectCenter = Point.create(305, 145)
   local teachRect = Shape.createRectangle(teachRectCenter, 260, 130, 0)
   local teachRegion = teachRect:toPixelRegion(img)
+
+  -- Check if wanted downsample factor is supported by device
+  minDsf,_ = matcher:getDownsampleFactorLimits(img)
+  if (minDsf > wantedDownsampleFactor) then
+    print("Cannot use downsample factor " .. wantedDownsampleFactor .. " will use " .. minDsf .. " instead") 
+    matcher:setDownsampleFactor(minDsf)
+  end
 
   -- Teaching
   local teachPose = matcher:teach(img, teachRegion)
