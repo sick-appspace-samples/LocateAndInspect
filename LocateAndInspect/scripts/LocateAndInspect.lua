@@ -5,30 +5,19 @@ print('AppEngine Version: ' .. Engine.getVersion())
 local DELAY = 1000 -- ms between visualization steps for demonstration purpose
 
 -- Creating viewer
-local viewer = View.create('viewer2D1')
+local viewer = View.create()
 
 -- Setting up graphical overlay attributes
-local textDeco = View.TextDecoration.create()
-textDeco:setSize(40)
-textDeco:setPosition(20, 40)
+local textDeco = View.TextDecoration.create():setSize(40):setPosition(20, 40)
 
-local teachDecoration = View.ShapeDecoration.create()
-teachDecoration:setPointSize(5)
-teachDecoration:setLineColor(0, 0, 255) -- Blue color scheme for "Teach" mode
-teachDecoration:setPointType('DOT')
-teachDecoration:setLineWidth(5)
+local teachDecoration = View.ShapeDecoration.create():setLineWidth(5):setPointSize(5)
+teachDecoration:setPointType('DOT'):setLineColor(0, 0, 255) -- Blue color scheme for "Teach" mode
 
-local passDecoration = View.ShapeDecoration.create()
-passDecoration:setPointSize(5)
-passDecoration:setLineColor(0, 255, 0) -- Green color scheme for "Pass" mode
-passDecoration:setPointType('DOT')
-passDecoration:setLineWidth(5)
+local passDecoration = View.ShapeDecoration.create():setPointSize(5):setLineWidth(5)
+passDecoration:setPointType('DOT'):setLineColor(0, 255, 0) -- Green color scheme for "Pass" mode
 
-local failDecoration = View.ShapeDecoration.create()
-failDecoration:setPointSize(5)
-failDecoration:setLineColor(255, 0, 0) -- Red color scheme for "Fail" results
-failDecoration:setPointType('DOT')
-failDecoration:setLineWidth(5)
+local failDecoration = View.ShapeDecoration.create():setPointSize(5):setLineWidth(5)
+failDecoration:setPointType('DOT'):setLineColor(255, 0, 0) -- Red color scheme for "Fail" results
 
 -- Create edge matcher
 local matcher = Image.Matching.EdgeMatcher.create()
@@ -43,7 +32,9 @@ local fixt = Image.Fixture.create()
 
 --Start of Function and Event Scope---------------------------------------------
 
---@inspectLetters(img:Image, rect:Shape)
+---@param img Image
+---@param rect Shape
+---@return Image.PixelRegion[]
 local function inspectLetters(img, rect)
   local inspectRegion = rect:toPixelRegion(img)
   local inspectRegionBinarized = img:threshold(110, 255, inspectRegion)
@@ -51,12 +42,14 @@ local function inspectLetters(img, rect)
   return letterBlobs
 end
 
---@teach(img:Image)
+---@param img Image
+---@return Point[]
+---@return Image.PixelRegion[]
 local function teach(img)
   viewer:clear()
-  local imageID = viewer:addImage(img)
+  viewer:addImage(img)
   -- Adding "Teach" text overlay
-  viewer:addText('Teach', textDeco, nil, imageID)
+  viewer:addText('Teach', textDeco)
 
   -- Defining teach region
   local teachRectCenter = Point.create(305, 145)
@@ -64,7 +57,7 @@ local function teach(img)
   local teachRegion = teachRect:toPixelRegion(img)
 
   -- Check if wanted downsample factor is supported by device
-  minDsf,_ = matcher:getDownsampleFactorLimits(img)
+  local minDsf,_ = matcher:getDownsampleFactorLimits(img)
   if (minDsf > wantedDownsampleFactor) then
     print("Cannot use downsample factor " .. wantedDownsampleFactor .. " will use " .. minDsf .. " instead") 
     matcher:setDownsampleFactor(minDsf)
@@ -76,14 +69,12 @@ local function teach(img)
   -- Viewing model points overlayed over teach image
   local modelPoints = matcher:getModelPoints() -- Model points in model's local coord syst
   local teachPoints = Point.transform(modelPoints, teachPose)
-  for _, point in ipairs(teachPoints) do
-    viewer:addShape(point, teachDecoration, nil, imageID)
-  end
+  viewer:addShape(teachPoints, teachDecoration)
 
   -- Setting up inspection region
   local inspectRectCenter = Point.create(302, 66)
   local inspectRect = Shape.createRectangle(inspectRectCenter, 240, 33, 0)
-  viewer:addShape(inspectRect, teachDecoration, nil, imageID)
+  viewer:addShape(inspectRect, teachDecoration)
 
   --Configuring fixture
   fixt:setReferencePose(teachPose)
@@ -96,10 +87,12 @@ local function teach(img)
   return modelPoints, letterBlobs
 end
 
---@match(img:Image)
+---@param img Image
+---@param modelPoints Point
+---@param letterBlobs Image.PixelRegion[]
 local function match(img, modelPoints, letterBlobs)
   viewer:clear()
-  local imageID = viewer:addImage(img)
+  viewer:addImage(img)
   -- Finding object pose
   local poses, _ = matcher:match(img)
 
@@ -122,15 +115,13 @@ local function match(img, modelPoints, letterBlobs)
     result = 'Fail'
   end
 
-  viewer:addText(result, textDeco, nil, imageID)
+  viewer:addText(result, textDeco)
 
-  viewer:addShape(fixt:getShape('inspectRect'), resultDeco, nil, imageID)
+  viewer:addShape(fixt:getShape('inspectRect'), resultDeco)
 
   -- Viewing model points as overlay
   local livePoints = Point.transform(modelPoints, poses[1])
-  for _, point in ipairs(livePoints) do
-    viewer:addShape(point, passDecoration, nil, imageID)
-  end
+  viewer:addShape(livePoints, passDecoration)
   viewer:present()
 end
 
